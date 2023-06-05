@@ -1,0 +1,80 @@
+plugins {
+
+    id "io.qameta.allure" version "2.11.2"
+}
+
+
+allure {
+    version = '2.21.0'
+    autoconfigure = true
+}
+
+
+task showGradleVersion {
+    doLast {
+        println "Gradle version: $gradleVersion"
+    }
+}
+
+def properties = new Properties()
+properties.load(new FileInputStream('gradle.properties'))
+def gradleVersion = properties.getProperty('gradleVersion')
+println(gradleVersion)
+
+
+apply plugin: 'io.qameta.allure'
+apply plugin: 'java'
+
+repositories {
+    // Use Maven Central for resolving dependencies.
+    maven {
+        println("Looking for dependencies")
+        url "https://plugins.gradle.org/m2/"
+        mavenCentral()
+    }
+
+
+}
+
+
+java {
+    sourceCompatibility = 11
+    targetCompatibility = 11
+}
+
+
+dependencies {
+
+
+    // Use TestNG framework, also requires calling test.useTestNG() below
+    implementation 'org.testng:testng:7.7.0'
+
+    // This dependency is used by the application.
+    implementation 'com.google.guava:guava:31.0.1-jre'
+    implementation 'org.seleniumhq.selenium:selenium-java:4.9.1'
+    implementation 'io.github.bonigarcia:webdrivermanager:5.3.3'
+    implementation 'io.qameta.allure:allure-testng:2.22.0'
+    implementation 'io.qameta.allure:allure-gradle:2.8.1'
+    runtimeOnly 'org.aspectj:aspectjweaver:1.8.10'
+    implementation 'io.appium:java-client:8.5.0'
+    implementation 'io.qameta.allure:allure-commandline:2.22.1'
+
+}
+
+
+
+
+tasks.register('allureGenerate', Exec) {
+    workingDir = project.rootDir
+    commandLine 'allure', 'generate', 'build/allure-results', '--clean'
+}
+
+
+test { //this is the gradle task to be executed
+    useTestNG() { //Tells Gradle to use TestNG
+        useDefaultListeners = true // Tells TestNG to execute its default reporting structure
+        suites( System.getProperty("suiteXml","src/test/resources/testng.xml") )//location of our suite.xml
+    }
+
+
+}

@@ -1,0 +1,46 @@
+{
+
+   "cellphones" : {
+     "dweb" : "xpath=//a[normalize-space()='Cell Phones & Smartphones'][1]"
+   },
+
+  "seeAll" : {
+
+    "dweb" : "xpath=//span[normalize-space()='See All'][1]"
+  },
+
+  "filter" : {
+
+    "dweb": "xpath=//span[contains(@class, 'overlay') and normalize-space()='{0}'][1]"
+  },
+  "subFilter" : {
+
+    "dweb": "xpath=//span[contains(@class, 'refine') and normalize-space()='{0}'][1]"
+  },
+
+  "priceRange": {
+
+    "dweb" : "xpath=//input[@aria-label = '{0}']"
+  },
+
+  "itemLocation": {
+
+    "dweb" : "xpath=//input[@role='radio' and @value='{0}'][1]"
+  },
+
+  "applyFilter" : {
+
+    "dweb": "xpath=//button[normalize-space() = 'Apply']"
+  },
+
+  "appliedFiltersLocator": {
+
+    "dweb" : "xpath=//span[contains(text(), 'filters applied')]"
+  },
+
+  "appliedFilters" : {
+
+    "dweb" : "xpath=//span[@class='brm__item-label' and contains(text(),'{0}')]"
+  }
+
+}
