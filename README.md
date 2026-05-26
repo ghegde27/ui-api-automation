@@ -14,9 +14,9 @@ Request body:
 
 ```json
 {
-  "name": "shaila1",
-  "email": "manjushaila1@gmail.com",
-  "phone": "9986693954"
+  "name": "test",
+  "email": "test@gmail.com",
+  "phone": "1234567890"
 }
 ```
 
@@ -435,7 +435,7 @@ public class UserRepositoryExample {
     public void readUsers() {
         List<Map<String, Object>> rows = JdbcUtils.executeQuery(
                 "SELECT id, name, email, phone FROM users WHERE email = ?",
-                "manjushaila1@gmail.com"
+                "test@gmail.com"
         );
 
         for (Map<String, Object> row : rows) {
@@ -468,7 +468,7 @@ public class UserDatabaseTest {
     public void verifyUserCreatedInDatabase() {
         Map<String, Object> user = JdbcUtils.executeQueryForSingleRow(
                 "SELECT id, name, email, phone FROM users WHERE email = ?",
-                "manjushaila1@gmail.com"
+                "test@gmail.com"
         );
 
         Assert.assertFalse(user.isEmpty(), "User should exist in database");
@@ -477,9 +477,9 @@ public class UserDatabaseTest {
         String email = String.valueOf(user.get("email"));
         String phone = String.valueOf(user.get("phone"));
 
-        Assert.assertEquals(name, "shaila1");
-        Assert.assertEquals(email, "manjushaila1@gmail.com");
-        Assert.assertEquals(phone, "9986693954");
+        Assert.assertEquals(name, "test");
+        Assert.assertEquals(email, "test@gmail.com");
+        Assert.assertEquals(phone, "1234567890");
     }
 }
 ```
@@ -489,17 +489,17 @@ public class UserDatabaseTest {
 ```java
 int updatedRows = JdbcUtils.executeUpdate(
         "UPDATE users SET phone = ? WHERE email = ?",
-        "9986693954",
-        "manjushaila1@gmail.com"
+        "1234567890",
+        "test@gmail.com"
 );
 ```
 
 ```java
 int insertedRows = JdbcUtils.executeUpdate(
         "INSERT INTO users (name, email, phone) VALUES (?, ?, ?)",
-        "shaila1",
-        "manjushaila1@gmail.com",
-        "9986693954"
+        "test",
+        "test@gmail.com",
+        "1234567890"
 );
 ```
 
@@ -581,11 +581,11 @@ public class RedisStringTest {
 
     @Test
     public void verifyRedisStringValue() {
-        RedisUtils.set("user:email", "manjushaila1@gmail.com");
+        RedisUtils.set("user:email", "test@gmail.com");
 
         String email = RedisUtils.get("user:email");
 
-        Assert.assertEquals(email, "manjushaila1@gmail.com");
+        Assert.assertEquals(email, "test@gmail.com");
     }
 }
 ```
@@ -593,10 +593,10 @@ public class RedisStringTest {
 ### Set Value With Expiry
 
 ```java
-RedisUtils.set("otp:9986693954", "123456", 60);
+RedisUtils.set("otp:1234567890", "123456", 60);
 
-String otp = RedisUtils.get("otp:9986693954");
-long ttl = RedisUtils.ttl("otp:9986693954");
+String otp = RedisUtils.get("otp:1234567890");
+long ttl = RedisUtils.ttl("otp:1234567890");
 ```
 
 ### Parse Redis Hash Response
@@ -612,16 +612,16 @@ public class RedisHashTest {
 
     @Test
     public void verifyUserHash() {
-        RedisUtils.hset("user:manjushaila1@gmail.com", "name", "shaila1");
-        RedisUtils.hset("user:manjushaila1@gmail.com", "phone", "9986693954");
+        RedisUtils.hset("user:test@gmail.com", "name", "test");
+        RedisUtils.hset("user:test@gmail.com", "phone", "1234567890");
 
-        Map<String, String> user = RedisUtils.hgetAll("user:manjushaila1@gmail.com");
+        Map<String, String> user = RedisUtils.hgetAll("user:test@gmail.com");
 
         String name = user.get("name");
         String phone = user.get("phone");
 
-        Assert.assertEquals(name, "shaila1");
-        Assert.assertEquals(phone, "9986693954");
+        Assert.assertEquals(name, "test");
+        Assert.assertEquals(phone, "1234567890");
     }
 }
 ```
@@ -652,8 +652,8 @@ public class RedisListExample {
 ```java
 long deletedCount = RedisUtils.delete(
         "user:email",
-        "otp:9986693954",
-        "user:manjushaila1@gmail.com"
+        "otp:1234567890",
+        "user:test@gmail.com"
 );
 ```
 
