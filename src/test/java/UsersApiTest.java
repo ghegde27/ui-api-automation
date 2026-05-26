@@ -13,7 +13,7 @@ public class UsersApiTest {
         User request = new User(
                 "test_user2",
                 "test_user2@gmail.com",
-                "9620969967"
+                "1234567891"
         );
 
         ApiResponse response = ApiAssertions.assertStatusCodeIn(
