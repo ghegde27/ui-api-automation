@@ -1,0 +1,18 @@
+{
+
+
+  "title" : {
+
+    "web": "xpath=//table[.//th[text()='Description']]"
+  },
+
+  "right" : {
+
+    "web": "xpath=//a[contains(text(),'About')]"
+  },
+
+  "about": {
+
+    "web": "xpath=//a[contains(text(),'About')]"
+  }
+}

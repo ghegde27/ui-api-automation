@@ -1,26 +1,23 @@
 package org.framework.utils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
 
-public interface LogManager {
-         static Logger getLogger(String name){
-            Objects.requireNonNull(name);
-            return LoggerFactory.getLogger( name );
+public final class LogManager {
+
+    private LogManager() {
+        // utility class
     }
 
-     static Logger getLogger(Class clz) {
-         Objects.requireNonNull(clz);
-         return LoggerFactory.getLogger( clz );
+    public static Logger getLogger(Class<?> clazz) {
+        Objects.requireNonNull(clazz, "Logger class cannot be null");
+        return LoggerFactory.getLogger(clazz);
+    }
 
-     }
-
-
-
-
-
-
-
-
+    public static Logger getLogger(String name) {
+        Objects.requireNonNull(name, "Logger name cannot be null");
+        return LoggerFactory.getLogger(name);
+    }
 }

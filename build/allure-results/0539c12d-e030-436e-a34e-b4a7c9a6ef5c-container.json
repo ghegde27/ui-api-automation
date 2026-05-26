@@ -1,1 +1,0 @@
-{"uuid":"0539c12d-e030-436e-a34e-b4a7c9a6ef5c","name":"Ebay Suite","children":["41f3dfee-1862-4df5-ba6e-22c52b7d6db2"],"befores":[{"name":"configureSuite","status":"passed","stage":"finished","description":"","steps":[],"attachments":[],"parameters":[],"start":1685733819374,"stop":1685733886998}],"afters":[],"start":1685733819246,"stop":1685733944362}

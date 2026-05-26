@@ -7,77 +7,102 @@ import org.framework.utils.JacksonProvider;
 import org.framework.utils.LogManager;
 import org.framework.utils.WebUtils;
 import org.openqa.selenium.By;
-import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.Wait;
 import org.slf4j.Logger;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 
-import static org.framework.utils.LogManager.*;
+public abstract class BasePage {
 
-public class BasePage  implements LogManager, JacksonProvider {
+    protected final WebDriver driver;
+    protected final WebUtils ui;
 
-    static Map<String, Map<String,String>> locator;
-    WebDriver driver;
+    protected final ConfigManager config;
+    protected final String platform;
 
-    private static final Logger LOGGER = getLogger(BasePage.class);
-    WebUtils webFunctions ;
+    private final Map<String, Map<String, String>> locators;
 
-    final String REGEX = "{0}";
+    private static final Logger LOG =
+            LogManager.getLogger(BasePage.class);
 
-    ConfigManager configManager = ConfigManager.getInstance();
-
-    protected BasePage(WebDriver driver){
-
-        this.driver = driver;
-        this.webFunctions = new WebUtils(driver);
+    protected BasePage(WebDriver driver, String locatorResource) {
+        this.driver = Objects.requireNonNull(driver, "WebDriver cannot be null");
+        this.ui = new WebUtils(driver);
+        this.config = ConfigManager.getInstance();
+        this.platform = config.getString("platform").toLowerCase();
+        this.locators = loadLocators(locatorResource);
     }
 
+    // =========================
+    // Locator resolution
+    // =========================
+    protected By locator(String name) {
+        String raw = resolveRawLocator(name);
+        return LocatorFactory.getLocator(raw);
+    }
 
+    protected String locatorValue(String name) {
+        return LocatorFactory.getLocatorValue(resolveRawLocator(name));
+    }
 
+    private String resolveRawLocator(String name) {
+        Objects.requireNonNull(name, "Locator name cannot be null");
 
-    protected static  Map<String,Map<String,String>> loadLocators(String fileName) {
-        LOGGER.debug("Loading Object repository ************ and file name is {} ", fileName);
-        Map<String,Map<String,String>> locators;
-        try {
-            File file = new File(fileName);
-            locators =  OBJECT_MAPPER.readValue( file, new TypeReference<>() {
-            });
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        Map<String, String> entry = locators.get(name);
+        if (entry == null) {
+            throw new IllegalArgumentException(
+                    "Locator key not found in repository: " + name
+            );
         }
-        return locators;
+
+        // Primary platform lookup
+        String raw = entry.get(platform);
+
+        // Optional fallback (web → default)
+        if (raw == null) {
+            raw = entry.get("web");
+        }
+        if (raw == null) {
+            raw = entry.get("default");
+        }
+
+        if (raw == null) {
+            throw new IllegalArgumentException(
+                    "No locator found for key '" + name +
+                            "' | platform=" + platform +
+                            " | available=" + entry.keySet()
+            );
+        }
+
+        return raw;
     }
 
-    private static String fetchResourceFile(String file) {
-        return new File(file).getAbsolutePath()  ;
+    // =========================
+    // Locator loading
+    // =========================
+    private Map<String, Map<String, String>> loadLocators(String resource) {
+
+        LOG.debug("Loading locator file: {}", resource);
+
+        try (InputStream is = getClass()
+                .getClassLoader()
+                .getResourceAsStream(resource)) {
+
+            if (is == null) {
+                throw new IllegalArgumentException(
+                        "Locator resource not found on classpath: " + resource
+                );
+            }
+
+            return JacksonProvider.mapper()
+                    .readValue(is, new TypeReference<>() {});
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Failed to load locator resource: " + resource, e
+            );
+        }
     }
-
-
-    protected By getLocator(String name){
-        Objects.requireNonNull(name);
-        LOGGER.debug("Looking for locator in Object repository ************ {}", name);
-        return LocatorFactory.getLocator( locator.get( name ).get( configManager.getString( "platform" ) ));
-    }
-
-    protected String getLocatorValue(String name){
-        Objects.requireNonNull(name);
-        LOGGER.debug("Looking for locators value in Object repository ************ {}", name);
-        return LocatorFactory.getLocatorValue(locator.get( name ).get( configManager.getString( "platform" ) ));
-
-    }
-
-
-
-
 }

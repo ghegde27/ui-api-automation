@@ -3,54 +3,177 @@ package org.framework.config;
 import org.framework.utils.LogManager;
 import org.slf4j.Logger;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.InputStream;
+import java.util.Objects;
 import java.util.Properties;
 
-public class ConfigManager extends ConfigUtils implements LogManager {
+public final class ConfigManager {
 
-    Logger logger = LogManager.getLogger(ConfigManager.class.getSimpleName());
+    private static final Logger LOG =
+            LogManager.getLogger(ConfigManager.class);
 
-    Properties properties = new Properties();
-    private static class ConfigLoader{
+    private final Properties properties = new Properties();
 
-        static final ConfigManager CONFIGMANAGER = new ConfigManager();
+    // =========================
+    // Singleton (safe + lazy)
+    // =========================
+    private static final class Holder {
+        private static final ConfigManager INSTANCE = new ConfigManager();
     }
-    private ConfigManager(){
-        try {
-            logger.info( "Loading config file and bringing up the framework" );
-            loadConfig();
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
+
+    private ConfigManager() {
+        load();
+    }
+
+    public static ConfigManager getInstance() {
+        return Holder.INSTANCE;
+    }
+
+    // =========================
+    // Load config
+    // =========================
+    private void load() {
+
+        final String resource = "config.properties";
+        LOG.info("Loading framework configuration: {}", resource);
+
+        try (InputStream is = getClass()
+                .getClassLoader()
+                .getResourceAsStream(resource)) {
+
+            if (is == null) {
+                throw new IllegalStateException(
+                        "config.properties not found on classpath"
+                );
+            }
+
+            properties.load(is);
+
+        } catch (Exception e) {
+            throw new RuntimeException(
+                    "Failed to load config.properties", e
+            );
         }
     }
 
+    // =========================
+    // Resolution rules
+    // =========================
+    private String resolve(String key) {
 
+        Objects.requireNonNull(key, "Config key cannot be null");
 
-    private void loadConfig() throws FileNotFoundException {
-        try {
-            String RESOURCE_PATH = "config.properties";
-            properties.load( ClassLoader.getSystemResourceAsStream(RESOURCE_PATH));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        // 1️⃣ JVM override (-Dkey=value)
+        String sysValue = System.getProperty(key);
+        if (sysValue != null) {
+            return sysValue;
         }
 
+        // 2️⃣ config.properties
+        String fileValue = properties.getProperty(key);
+        if (fileValue != null) {
+            return fileValue;
+        }
+
+        throw new IllegalArgumentException(
+                "Missing required config key: " + key
+        );
     }
 
-
-
-    public static ConfigManager getInstance(){
-        return ConfigLoader.CONFIGMANAGER;
-
+    // =========================
+    // Typed accessors
+    // =========================
+    public String getString(String key) {
+        return resolve(key).trim();
     }
 
-    @Override
-    public String getString(Object value) {
-        return String.valueOf( this.properties.get( value ) );
+    public boolean getBoolean(String key) {
+        return Boolean.parseBoolean(resolve(key));
     }
 
-    @Override
+    public int getInt(String key) {
+        try {
+            return Integer.parseInt(resolve(key));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "Invalid integer value for key: " + key, e
+            );
+        }
+    }
+
+    public long getLong(String key) {
+        try {
+            return Long.parseLong(resolve(key));
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "Invalid long value for key: " + key, e
+            );
+        }
+    }
+
     public Properties getAll() {
-        return properties;
+        return new Properties(properties);
+    }
+
+
+    public boolean getBoolean(String key, boolean defaultValue) {
+        String value = resolveOptional(key);
+        return (value == null || value.isBlank())
+                ? defaultValue
+                : Boolean.parseBoolean(value.trim());
+    }
+
+
+    public String getString(String key, String defaultValue) {
+        String value = resolveOptional(key);
+        return (value == null || value.trim().isEmpty())
+                ? defaultValue
+                : value.trim();
+    }
+
+
+    private String resolveOptional(String key) {
+
+        Objects.requireNonNull(key, "Config key cannot be null");
+
+        String sysValue = System.getProperty(key);
+        if (sysValue != null) {
+            return sysValue;
+        }
+
+        return properties.getProperty(key);
+    }
+
+
+    public int getInt(String key, int defaultValue) {
+        String value = resolveOptional(key);
+
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "Invalid integer value for key: " + key, e
+            );
+        }
+    }
+
+    public long getLong(String key, long defaultValue) {
+        String value = resolveOptional(key);
+
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(
+                    "Invalid long value for key: " + key, e
+            );
+        }
     }
 }

@@ -1,80 +1,91 @@
 plugins {
-
-    id "io.qameta.allure" version "2.11.2"
+    id 'java'
+    id 'io.qameta.allure' version '2.11.2'
 }
 
-
-allure {
-    version = '2.21.0'
-    autoconfigure = true
-}
-
-
-task showGradleVersion {
-    doLast {
-        println "Gradle version: $gradleVersion"
-    }
-}
-
-def properties = new Properties()
-properties.load(new FileInputStream('gradle.properties'))
-def gradleVersion = properties.getProperty('gradleVersion')
-println(gradleVersion)
-
-
-apply plugin: 'io.qameta.allure'
-apply plugin: 'java'
-
-repositories {
-    // Use Maven Central for resolving dependencies.
-    maven {
-        println("Looking for dependencies")
-        url "https://plugins.gradle.org/m2/"
-        mavenCentral()
-    }
-
-
-}
-
+group = 'org.framework'
+version = '1.0-SNAPSHOT'
 
 java {
-    sourceCompatibility = 11
-    targetCompatibility = 11
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
 }
 
+repositories {
+    mavenCentral()
+}
+
+/*
+ Versions are defined ONLY in gradle.properties
+ (single source of truth)
+ */
 
 dependencies {
 
+    // =========================
+    // Test Framework
+    // =========================
+    implementation "org.testng:testng:${testngVersion}"
 
-    // Use TestNG framework, also requires calling test.useTestNG() below
-    implementation 'org.testng:testng:7.7.0'
+    // =========================
+    // Selenium & Appium
+    // =========================
+    implementation "org.seleniumhq.selenium:selenium-java:${seleniumVersion}"
+    implementation "io.appium:java-client:${appiumVersion}"
+    implementation "io.github.bonigarcia:webdrivermanager:${wdmVersion}"
+    implementation 'io.rest-assured:rest-assured:5.5.0'
+    implementation 'io.prometheus:simpleclient:0.16.0'
 
-    // This dependency is used by the application.
-    implementation 'com.google.guava:guava:31.0.1-jre'
-    implementation 'org.seleniumhq.selenium:selenium-java:4.9.1'
-    implementation 'io.github.bonigarcia:webdrivermanager:5.3.3'
-    implementation 'io.qameta.allure:allure-testng:2.22.0'
-    implementation 'io.qameta.allure:allure-gradle:2.8.1'
-    runtimeOnly 'org.aspectj:aspectjweaver:1.8.10'
-    implementation 'io.appium:java-client:8.5.0'
-    implementation 'io.qameta.allure:allure-commandline:2.22.1'
+    implementation 'io.opentelemetry:opentelemetry-api:1.39.0'
 
+
+    // =========================
+    // Reporting
+    // =========================
+    implementation "io.qameta.allure:allure-testng:${allureVersion}"
+
+    // =========================
+    // Logging
+    // =========================
+    implementation "org.slf4j:slf4j-api:${slf4jVersion}"
+    implementation "ch.qos.logback:logback-classic:1.4.14"
+
+    // =========================
+    // Utilities
+    // =========================
+    implementation "org.apache.commons:commons-lang3:3.14.0"
+    implementation "commons-io:commons-io:2.15.1"
+
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.16.1"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.16.1"
+    implementation "redis.clients:jedis:${jedisVersion}"
+}
+allure {
+    version = allureVersion
+    autoconfigure = true
+
+    useTestNG {
+        version = allureVersion
+    }
 }
 
-
-
-
-tasks.register('allureGenerate', Exec) {
-    workingDir = project.rootDir
-    commandLine 'allure', 'generate', 'build/allure-results', '--clean'
-}
-
-
-test { //this is the gradle task to be executed
-    useTestNG() { //Tells Gradle to use TestNG
-        useDefaultListeners = true // Tells TestNG to execute its default reporting structure
-        suites( System.getProperty("suiteXml","src/test/resources/testng.xml") )//location of our suite.xml
+test {
+    useTestNG {
+        suites(
+                System.getProperty(
+                        "suiteXml",
+                        "src/test/resources/testng.xml"
+                )
+        )
     }
 
+    // Pass runtime overrides: -Dplatform, -Dbrowser, etc
+    systemProperties System.getProperties()
 
+    testLogging {
+        events "PASSED", "FAILED", "SKIPPED"
+        exceptionFormat "full"
+        showStandardStreams = true
+    }
 }

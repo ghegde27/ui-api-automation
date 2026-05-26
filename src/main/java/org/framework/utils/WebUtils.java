@@ -10,96 +10,143 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 
-import static org.framework.utils.LogManager.*;
+public final class WebUtils {
 
-public class WebUtils implements DriverFunctions,LogManager {
-
-    private final Logger LOGGER = getLogger(this.getClass().getSimpleName());
+    private static final Logger LOG =
+            LogManager.getLogger(WebUtils.class);
 
     private final WebDriver driver;
+    private final long defaultTimeout;
+    private final long pollingInterval;
 
-    public WebUtils(WebDriver driver){
+    public WebUtils(WebDriver driver) {
         this.driver = driver;
-
+        this.defaultTimeout = 30;        // later from ConfigManager
+        this.pollingInterval = 500;      // milliseconds
     }
 
-    public void click(By by , long timeout){
-        findElement( by,timeout ).click();
+    // =========================
+    // Click / Type
+    // =========================
+    public void click(By locator) {
+        findVisible(locator, defaultTimeout).click();
     }
 
-    public void clickUsingXpath(String xpath){
-        Objects.requireNonNull(xpath);
-        LOGGER.info( "click on the xpath provided ********** {}",xpath );
-        click(By.xpath(xpath));
+    public void click(By locator, long timeout) {
+        findVisible(locator, timeout).click();
     }
 
-
-    public void click(By by){
-         findElement( by,DEFAULT_TIMEOUT ).click();
-    }
-    public void sendKeys(By locator , String text){
-        findElement( locator,DEFAULT_TIMEOUT ).sendKeys(text);
-    }
-
-    public void clickAndSendKeys(By locator,String text) {
-
-        WebElement element = findElement( locator,DEFAULT_TIMEOUT );
-        element.click();
+    public void sendKeys(By locator, String text) {
+        WebElement element = findVisible(locator, defaultTimeout);
+        element.clear();
         element.sendKeys(text);
     }
 
-    public void scroll(){
-
-
+    public void clickAndSendKeys(By locator, String text) {
+        WebElement element = findVisible(locator, defaultTimeout);
+        element.click();
+        element.clear();
+        element.sendKeys(text);
     }
 
+    // =========================
+    // Finders
+    // =========================
+    public WebElement findVisible(By locator, long timeout) {
+        LOG.debug("Waiting for element: {}", locator);
 
-    public boolean isElementPresent(By by , long timeout){
-        return findElement(by,timeout ).isDisplayed();
-
-    }
-
-    final long DEFAULT_POLLING_PERIOD = 5L;
-
-    final long DEFAULT_TIMEOUT = 30L;
-
-    public WebElement findElement(By by, long timeout) {
         Wait<WebDriver> wait = new FluentWait<>(driver)
                 .withTimeout(Duration.ofSeconds(timeout))
-                .pollingEvery(Duration.ofSeconds(DEFAULT_POLLING_PERIOD))
+                .pollingEvery(Duration.ofMillis(pollingInterval))
                 .ignoring(NoSuchElementException.class)
-                .ignoring(TimeoutException.class);
-        LOGGER.info( "started looking for element ********** with timeout {}" , DEFAULT_TIMEOUT );
-        return wait.until(driver1 -> driver1.findElement(by));
+                .ignoring(StaleElementReferenceException.class);
 
+        return wait.until(d -> {
+            WebElement el = d.findElement(locator);
+            return el.isDisplayed() ? el : null;
+        });
     }
 
-    public WebElement findElement(By by){
-        return findElement( by, DEFAULT_TIMEOUT );
-    }
+    public List<WebElement> findAll(By locator, long timeout) {
 
-    public List<WebElement> findElements(By by, long timeout){
         Wait<WebDriver> wait = new FluentWait<>(driver)
                 .withTimeout(Duration.ofSeconds(timeout))
-                .pollingEvery(Duration.ofSeconds(DEFAULT_POLLING_PERIOD))
+                .pollingEvery(Duration.ofMillis(pollingInterval))
                 .ignoring(NoSuchElementException.class);
-        LOGGER.info( "started looking for element ********** with timeout {}" , DEFAULT_TIMEOUT );
-        return wait.until(driver1 -> driver1.findElements(by));
 
+        return wait.until(d -> {
+            List<WebElement> elements = d.findElements(locator);
+            return elements.isEmpty() ? null : elements;
+        });
+    }
+
+    // =========================
+    // Checks
+    // =========================
+    public boolean isElementPresent(By locator, long timeout) {
+        try {
+            findVisible(locator, timeout);
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
+    }
+
+    public boolean isElementDisplayed(By locator) {
+        return isElementPresent(locator, defaultTimeout);
+    }
+
+    // =========================
+    // Dropdown
+    // =========================
+    public void selectByVisibleText(By locator, String option) {
+        WebElement element = findVisible(locator, defaultTimeout);
+        new Select(element).selectByVisibleText(option);
+    }
+
+    // =========================
+    // Scroll
+    // =========================
+    public void scrollTo(By locator) {
+        WebElement element = findVisible(locator, defaultTimeout);
+        ((JavascriptExecutor) driver)
+                .executeScript("arguments[0].scrollIntoView(true);", element);
     }
 
 
+    public void clearAndSendKeys(By locator, String text) {
 
-  public boolean isElementDisplayed(By by) {
-        return findElement(by,DEFAULT_TIMEOUT).isDisplayed();
+        Objects.requireNonNull(locator, "Locator cannot be null");
+        Objects.requireNonNull(text, "Text cannot be null");
 
-  }
+        WebElement element = driver.findElement(locator);
 
-  public void selectDropDowns(WebElement element, String option){
-        Select objSelect =new Select(element);
-        objSelect.selectByVisibleText(option);
-  }
+        try {
+            element.click();     // bring focus
+            element.clear();
+            element.sendKeys(text);
+        } catch (InvalidElementStateException e) {
+            // fallback for some Android fields
+            element.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+            element.sendKeys(Keys.DELETE);
+            element.sendKeys(text);
+        }
+    }
 
 
+    public void waitUntilElementsPresent(By locator, long timeoutSeconds) {
 
+        Objects.requireNonNull(locator, "Locator cannot be null");
+
+        Wait<WebDriver> wait = new FluentWait<>(driver)
+                .withTimeout(Duration.ofSeconds(timeoutSeconds))
+                .pollingEvery(Duration.ofSeconds(1))
+                .ignoring(NoSuchElementException.class)
+                .ignoring(StaleElementReferenceException.class);
+
+        wait.until(d -> {
+            List<WebElement> elements = d.findElements(locator);
+            return !elements.isEmpty();
+        });
+    }
 }

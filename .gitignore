@@ -1,0 +1,20 @@
+# OS files
+.DS_Store
+
+# IDE files
+.idea/
+*.iml
+
+# Gradle
+.gradle/
+build/
+
+# Java build output
+out/
+*.class
+
+# Test and report output
+test-output/
+allure-results/
+logs/
+

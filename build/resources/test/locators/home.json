@@ -1,9 +1,0 @@
-{
-  "category": {
-    "android": "id=id",
-    "dweb": "xpath=//button[normalize-space()='Shop by category']"
-  },
-  "electronics": {
-    "dweb": "xpath=//a[normalize-space()='Cell phones & accessories'])[1]"
-  }
-}

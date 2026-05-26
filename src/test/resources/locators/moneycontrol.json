@@ -1,0 +1,13 @@
+{
+  "search_icon": {
+    "android": "id=com.divum.MoneyControl:id/header_search_icon"
+  },
+  "search_input": {
+    "android": "id=com.divum.MoneyControl:id/getQuote_editSearchBox"
+  },
+
+  "search_results" : {
+
+    "android" : "id=com.divum.MoneyControl:id/search_item_name"
+  }
+}
