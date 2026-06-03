@@ -38,16 +38,21 @@ pipeline {
             }
         }
 
-        stage('Execute Tests') {
+        stage('Run UI Tests') {
             steps {
-                sh '''
-                mkdir -p build
+                sh """
+        mkdir -p ${WORKSPACE}/allure-results
 
-                docker run --rm \
-                  -v ${WORKSPACE}/build:/app/build \
-                  --name api-tests-${BUILD_NUMBER} \
-                  api-automation:${BUILD_NUMBER}
-            '''
+        docker run --rm \
+          -v ${WORKSPACE}/allure-results:/app/build/allure-results \
+          -v ${WORKSPACE}/test-results:/app/build/test-results \
+          api-automation:${BUILD_NUMBER} \
+          clean test \
+          -DsuiteXml=src/test/resources/testng.xml \
+          -DexecutionType=grid \
+          -Dbrowser=firefox \
+          -Dselenium.grid.url=http://host.docker.internal:4444
+        """
             }
         }
 
@@ -58,57 +63,21 @@ pipeline {
                 find build -type f | sort || true
 
                 echo "===== Allure Results ====="
-                ls -la build/allure-results || true
+                ls -lrt allure-results
 
-                echo "===== JUnit Results ====="
-                ls -la build/test-results/test || true
             '''
             }
         }
     }
 
     post {
-
         always {
 
-            junit(
-                    allowEmptyResults: true,
-                    testResults: 'build/test-results/test/*.xml'
-            )
+            allure([
 
-            archiveArtifacts(
-                    artifacts: 'build/allure-results/**',
-                    allowEmptyArchive: true
-            )
+                    results: [[path: 'allure-results']]
 
-            archiveArtifacts(
-                    artifacts: 'build/reports/**',
-                    allowEmptyArchive: true
-            )
-
-            publishHTML([
-                    allowMissing: true,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'build/reports/allure-report/allureReport',
-                    reportFiles: 'index.html',
-                    reportName: 'Allure Report'
             ])
-
-            script {
-
-                if (fileExists('build/allure-results')) {
-
-                    allure([
-                            results: [[path: 'build/allure-results']]
-                    ])
-
-                } else {
-
-                    echo 'Allure results directory not found'
-
-                }
-            }
         }
     }
 }
