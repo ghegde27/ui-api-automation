@@ -1,6 +1,5 @@
 
 pipeline {
-
     agent any
 
     tools {
@@ -13,7 +12,6 @@ pipeline {
     }
 
     parameters {
-
         choice(
                 name: 'BROWSER',
                 choices: ['firefox'],
@@ -37,7 +35,6 @@ pipeline {
     }
 
     stages {
-
         stage('Clean Workspace') {
             steps {
                 cleanWs()
@@ -52,95 +49,91 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-
                 sh """
-            docker build \
-                -t api-automation:${BUILD_NUMBER} .
-            """
+                    docker build \
+                        -t api-automation:${BUILD_NUMBER} .
+                """
             }
         }
 
-        stage('Run Tests') {
+        stage('Prepare Results') {
             steps {
-
-                script {
-
-                    sh '''
-                mkdir -p results
-                '''
-
-                    sh """
-                docker run \
-                  --name api-tests-${BUILD_NUMBER} \
-                  api-automation:${BUILD_NUMBER} \
-                  test \
-                  -DsuiteXml=${params.SUITE_FILE} \
-                  -DexecutionType=${params.EXECUTION_TYPE} \
-                  -Dbrowser=${params.BROWSER} \
-                  -Dselenium.grid.url=http://host.docker.internal:4444
+                sh """
+                    rm -rf results allure-report
+                    mkdir -p results/allure-results results/test-results
+                    docker rm -f api-tests-${BUILD_NUMBER} || true
                 """
+            }
+        }
+
+        stage('Run Tests In Docker') {
+            steps {
+                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                    sh """
+                        docker run \
+                            --name api-tests-${BUILD_NUMBER} \
+                            --add-host=host.docker.internal:host-gateway \
+                            api-automation:${BUILD_NUMBER} \
+                            './gradlew clean test \
+                                -DsuiteXml=${params.SUITE_FILE} \
+                                -DexecutionType=${params.EXECUTION_TYPE} \
+                                -Dbrowser=${params.BROWSER} \
+                                -Dselenium.grid.url=http://host.docker.internal:4444 \
+                                -Dallure.results.directory=build/allure-results'
+                    """
                 }
             }
         }
 
-        stage('Copy Results From Container') {
+        stage('Copy Results To Jenkins') {
             steps {
-
                 sh """
-            mkdir -p results
+                    mkdir -p results/allure-results results/test-results
 
-            docker cp \
-              api-tests-${BUILD_NUMBER}:/app/build/allure-results \
-              results/ || true
+                    docker cp api-tests-${BUILD_NUMBER}:/app/build/allure-results/. \
+                        results/allure-results/ || true
 
-            docker cp \
-              api-tests-${BUILD_NUMBER}:/app/build/test-results \
-              results/ || true
+                    docker cp api-tests-${BUILD_NUMBER}:/app/build/test-results/. \
+                        results/test-results/ || true
 
-            echo "===== RESULTS ====="
-
-            find results || true
-            """
+                    echo "===== Copied results to Jenkins workspace ====="
+                    find results -maxdepth 3 -type f | sort || true
+                """
             }
         }
 
         stage('Generate Allure Report') {
             steps {
-
                 script {
-
                     def allureHome = tool 'Allure'
 
                     sh """
-                echo "===== ALLURE RESULTS ====="
+                        echo "===== Allure raw results ====="
+                        find results/allure-results -maxdepth 2 -type f | sort || true
 
-                find results/allure-results || true
+                        if [ ! -d results/allure-results ] || [ -z "\$(find results/allure-results -type f -print -quit)" ]; then
+                            echo "No Allure results found under results/allure-results"
+                            exit 1
+                        fi
 
-                ${allureHome}/bin/allure generate \
-                    results/allure-results \
-                    -o allure-report \
-                    --clean
-                """
+                        "${allureHome}/bin/allure" generate \
+                            results/allure-results \
+                            -o allure-report \
+                            --clean
+                    """
                 }
             }
         }
     }
 
     post {
-
         always {
-
             script {
-
                 sh '''
-            echo "===== FINAL DEBUG ====="
-
-            pwd
-
-            find results || true
-
-            find allure-report || true
-            '''
+                    echo "===== Final Jenkins artifacts ====="
+                    find results -maxdepth 4 -type f | sort || true
+                    find allure-report -maxdepth 4 -type f | sort || true
+                '''
 
                 junit(
                         allowEmptyResults: true,
@@ -157,20 +150,14 @@ pipeline {
                 ])
 
                 archiveArtifacts(
-                        artifacts: 'allure-report/**',
-                        allowEmptyArchive: true
-                )
-
-                archiveArtifacts(
-                        artifacts: 'results/**',
+                        artifacts: 'allure-report/**, results/**',
                         allowEmptyArchive: true
                 )
 
                 sh """
-            docker rm -f api-tests-${BUILD_NUMBER} || true
-            """
+                    docker rm -f api-tests-${BUILD_NUMBER} || true
+                """
             }
         }
     }
-
 }
