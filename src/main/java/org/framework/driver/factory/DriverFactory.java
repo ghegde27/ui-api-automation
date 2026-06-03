@@ -3,6 +3,7 @@ package org.framework.driver.factory;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.framework.config.ConfigManager;
 import org.framework.driver.core.DriverManager;
 import org.framework.driver.mobile.AndroidCapabilityProvider;
@@ -20,10 +21,13 @@ import org.openqa.selenium.edge.EdgeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.firefox.FirefoxOptions;
 
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.safari.SafariDriver;
 
 import org.slf4j.Logger;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.time.Duration;
 
 public final class DriverFactory {
@@ -99,6 +103,13 @@ public final class DriverFactory {
     ) {
 
         LOG.info("🌐 Creating browser driver: {}", browser);
+        final String executionType = CONFIG.getString("execution.type");
+
+        final String gridUrl = CONFIG.getString("selenium.grid.url");
+
+        LOG.info("🧩 execution type is  : {} -------", executionType);
+        LOG.info("🧩 grid url is  : {} -------", gridUrl);
+
 
         WebDriver driver;
 
@@ -142,9 +153,27 @@ public final class DriverFactory {
                     );
                 }
 
-                driver = new FirefoxDriver(
-                        firefoxOptions
-                );
+
+                if("grid".equalsIgnoreCase(executionType)) {
+
+                try {
+                    driver = new RemoteWebDriver(
+
+                            new URL(gridUrl),
+
+                            firefoxOptions
+
+                    );
+                } catch (MalformedURLException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+
+                WebDriverManager.firefoxdriver().setup();
+
+                driver = new FirefoxDriver();
+
+            }
 
                 break;
 

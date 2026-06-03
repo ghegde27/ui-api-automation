@@ -1,4 +1,4 @@
-FROM gradle:8.0-jdk17
+FROM gradle:jdk21
 
 WORKDIR /app
 
@@ -6,9 +6,6 @@ COPY . .
 
 RUN chmod +x gradlew
 
-CMD [
- "./gradlew",
- "clean",
- "test",
- "allureReport"
-]
+ENTRYPOINT ["./gradlew"]
+
+CMD ["clean","test"]
