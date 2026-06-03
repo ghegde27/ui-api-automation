@@ -4,80 +4,106 @@ pipeline {
 
     options {
         timestamps()
-        buildDiscarder(logRotator(
-                numToKeepStr: '20',
-                artifactNumToKeepStr: '20'
-        ))
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
+    parameters {
+
+        choice(
+                name: 'BROWSER',
+                choices: ['firefox'],
+                description: 'Browser'
+        )
+
+        choice(
+                name: 'EXECUTION_TYPE',
+                choices: ['grid'],
+                description: 'Execution Type'
+        )
     }
 
     stages {
 
-        stage('Verify Environment') {
+        stage('Clean Workspace') {
             steps {
-                sh '''
-                echo "Workspace:"
-                pwd
+                cleanWs()
+            }
+        }
 
-                echo "Files:"
-                ls -la
-
-                echo "Docker:"
-                docker --version
-
-                docker ps
-            '''
+        stage('Checkout') {
+            steps {
+                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                docker build \
-                  -t api-automation:${BUILD_NUMBER} .
-            '''
+
+                sh """
+            docker build \
+              -t api-automation:${BUILD_NUMBER} .
+            """
             }
         }
 
         stage('Run UI Tests') {
             steps {
+
                 sh """
-        mkdir -p ${WORKSPACE}/allure-results
+            mkdir -p ${WORKSPACE}/results/allure-results
+            mkdir -p ${WORKSPACE}/results/test-results
 
-        docker run --rm \
-          -v ${WORKSPACE}/allure-results:/app/build/allure-results \
-          -v ${WORKSPACE}/test-results:/app/build/test-results \
-          api-automation:${BUILD_NUMBER} \
-          clean test \
-          -DsuiteXml=src/test/resources/testng.xml \
-          -DexecutionType=grid \
-          -Dbrowser=firefox \
-          -Dselenium.grid.url=http://host.docker.internal:4444
-        """
-            }
-        }
-
-        stage('Verify Results') {
-            steps {
-                sh '''
-                echo "===== Test Results ====="
-                find build -type f | sort || true
-
-                echo "===== Allure Results ====="
-                ls -lrt allure-results
-
-            '''
+            docker run --rm \
+              -v ${WORKSPACE}/results:/results \
+              api-automation:${BUILD_NUMBER} \
+              test \
+              -DsuiteXml=src/test/resources/testng.xml \
+              -DexecutionType=${params.EXECUTION_TYPE} \
+              -Dbrowser=${params.BROWSER} \
+              -Dselenium.grid.url=http://host.docker.internal:4444
+            """
             }
         }
     }
 
     post {
+
         always {
 
-            allure([
+            script {
 
-                    results: [[path: 'allure-results']]
+                echo "===== Results Directory ====="
 
-            ])
+                sh '''
+            pwd
+            ls -lrt
+            find results || true
+            '''
+
+                junit(
+                        allowEmptyResults: true,
+                        testResults: 'results/test-results/**/*.xml'
+                )
+
+                archiveArtifacts(
+                        artifacts: 'results/**',
+                        allowEmptyArchive: true
+                )
+
+                if (fileExists('results/allure-results')) {
+
+                    echo "Publishing Allure Report..."
+
+                    allure([
+                            results: [[path: 'results/allure-results']]
+                    ])
+
+                } else {
+
+                    echo 'Allure results directory not found'
+
+                }
+            }
         }
     }
 }
