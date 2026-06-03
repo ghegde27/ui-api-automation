@@ -3,7 +3,7 @@ import org.framework.pages.PageFactory;
 import org.framework.pages.TestingPracticePage;
 import org.testng.annotations.Test;
 
-public class TestingSelenium {
+public class SeleniumTests {
 
 
     @Test
