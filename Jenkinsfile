@@ -4,24 +4,26 @@ pipeline {
 
     options {
         timestamps()
-        buildDiscarder(logRotator(numToKeepStr: '20'))
+        buildDiscarder(logRotator(
+                numToKeepStr: '20',
+                artifactNumToKeepStr: '20'
+        ))
     }
 
     stages {
 
-        stage('Verify Workspace') {
+        stage('Verify Environment') {
             steps {
                 sh '''
-                echo "Current Workspace:"
+                echo "Workspace:"
                 pwd
 
                 echo "Files:"
                 ls -la
 
-                echo "Docker Version:"
+                echo "Docker:"
                 docker --version
 
-                echo "Docker Containers:"
                 docker ps
             '''
             }
@@ -31,7 +33,7 @@ pipeline {
             steps {
                 sh '''
                 docker build \
-                    -t api-automation:${BUILD_NUMBER} .
+                  -t api-automation:${BUILD_NUMBER} .
             '''
             }
         }
@@ -39,9 +41,27 @@ pipeline {
         stage('Execute Tests') {
             steps {
                 sh '''
+                mkdir -p build
+
                 docker run --rm \
-                    --name api-tests-${BUILD_NUMBER} \
-                    api-automation:${BUILD_NUMBER}
+                  -v ${WORKSPACE}/build:/app/build \
+                  --name api-tests-${BUILD_NUMBER} \
+                  api-automation:${BUILD_NUMBER}
+            '''
+            }
+        }
+
+        stage('Verify Results') {
+            steps {
+                sh '''
+                echo "===== Test Results ====="
+                find build -type f | sort || true
+
+                echo "===== Allure Results ====="
+                ls -la build/allure-results || true
+
+                echo "===== JUnit Results ====="
+                ls -la build/test-results/test || true
             '''
             }
         }
@@ -51,6 +71,10 @@ pipeline {
 
         always {
 
+            junit(
+                    allowEmptyResults: true,
+                    testResults: 'build/test-results/test/*.xml'
+            )
 
             archiveArtifacts(
                     artifacts: 'build/allure-results/**',
@@ -63,13 +87,28 @@ pipeline {
             )
 
             publishHTML([
-                    allowMissing         : true,
+                    allowMissing: true,
                     alwaysLinkToLastBuild: true,
-                    keepAll              : true,
-                    reportDir            : 'build/reports/allure-report/allureReport',
-                    reportFiles          : 'index.html',
-                    reportName           : 'Allure Report'
+                    keepAll: true,
+                    reportDir: 'build/reports/allure-report/allureReport',
+                    reportFiles: 'index.html',
+                    reportName: 'Allure Report'
             ])
+
+            script {
+
+                if (fileExists('build/allure-results')) {
+
+                    allure([
+                            results: [[path: 'build/allure-results']]
+                    ])
+
+                } else {
+
+                    echo 'Allure results directory not found'
+
+                }
+            }
         }
     }
 }
