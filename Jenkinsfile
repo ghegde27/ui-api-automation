@@ -1,15 +1,17 @@
-agent any
 
-options {
-    timestamps()
-    buildDiscarder(logRotator(numToKeepStr: '20'))
-}
+pipeline {
+    agent any
 
-stages {
+    options {
+        timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
 
-    stage('Verify Workspace') {
-        steps {
-            sh '''
+    stages {
+
+        stage('Verify Workspace') {
+            steps {
+                sh '''
                 echo "Current Workspace:"
                 pwd
 
@@ -22,51 +24,52 @@ stages {
                 echo "Docker Containers:"
                 docker ps
             '''
+            }
         }
-    }
 
-    stage('Build Docker Image') {
-        steps {
-            sh '''
+        stage('Build Docker Image') {
+            steps {
+                sh '''
                 docker build \
                     -t api-automation:${BUILD_NUMBER} .
             '''
+            }
         }
-    }
 
-    stage('Execute Tests') {
-        steps {
-            sh '''
+        stage('Execute Tests') {
+            steps {
+                sh '''
                 docker run --rm \
                     --name api-tests-${BUILD_NUMBER} \
                     api-automation:${BUILD_NUMBER}
             '''
+            }
         }
     }
-}
 
-post {
+    post {
 
-    always {
+        always {
 
 
-        archiveArtifacts(
-                artifacts: 'build/allure-results/**',
-                allowEmptyArchive: true
-        )
+            archiveArtifacts(
+                    artifacts: 'build/allure-results/**',
+                    allowEmptyArchive: true
+            )
 
-        archiveArtifacts(
-                artifacts: 'build/reports/**',
-                allowEmptyArchive: true
-        )
+            archiveArtifacts(
+                    artifacts: 'build/reports/**',
+                    allowEmptyArchive: true
+            )
 
-        publishHTML([
-                allowMissing: true,
-                alwaysLinkToLastBuild: true,
-                keepAll: true,
-                reportDir: 'build/reports/allure-report/allureReport',
-                reportFiles: 'index.html',
-                reportName: 'Allure Report'
-        ])
+            publishHTML([
+                    allowMissing         : true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll              : true,
+                    reportDir            : 'build/reports/allure-report/allureReport',
+                    reportFiles          : 'index.html',
+                    reportName           : 'Allure Report'
+            ])
+        }
     }
 }
