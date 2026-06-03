@@ -77,44 +77,35 @@ pipeline {
         }
     }
 
-    post {
-
-        always {
+    stage('Generate Allure Report') {
+        steps {
 
             script {
 
-                echo "===== Results Directory ====="
+                def allureHome = tool 'Allure'
 
-                sh '''
-            pwd
-            ls -lrt
-            find results || true
-            '''
-
-                junit(
-                        allowEmptyResults: true,
-                        testResults: 'results/test-results/**/*.xml'
-                )
-
-                archiveArtifacts(
-                        artifacts: 'results/**',
-                        allowEmptyArchive: true
-                )
-
-                if (fileExists('results/allure-results')) {
-
-                    echo "Publishing Allure Report..."
-
-                    allure([
-                            results: [[path: 'results/allure-results']]
-                    ])
-
-                } else {
-
-                    echo 'Allure results directory not found'
-
-                }
+                sh """
+            ${allureHome}/bin/allure generate \
+                results/allure-results \
+                -o allure-report \
+                --clean
+            """
             }
         }
     }
+
+    post {
+        always {
+
+            publishHTML([
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'allure-report',
+                    reportFiles: 'index.html',
+                    reportName: 'Allure HTML Report'
+            ])
+        }
+    }
+
 }
