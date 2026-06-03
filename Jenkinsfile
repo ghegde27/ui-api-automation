@@ -2,6 +2,11 @@
 pipeline {
     agent any
 
+    tools {
+
+        allure 'Allure'
+
+    }
     options {
         timestamps()
         buildDiscarder(logRotator(numToKeepStr: '20'))
