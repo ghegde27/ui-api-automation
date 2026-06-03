@@ -1,5 +1,6 @@
 
 pipeline {
+
     agent any
 
     tools {
@@ -12,6 +13,7 @@ pipeline {
     }
 
     parameters {
+
         choice(
                 name: 'BROWSER',
                 choices: ['firefox'],
@@ -26,12 +28,16 @@ pipeline {
 
         choice(
                 name: 'SUITE_FILE',
-                choices: ['src/test/resources/testng.xml','src/test/resources/api-testng.xml'],
-                description: 'Execution Type'
+                choices: [
+                        'src/test/resources/testng.xml',
+                        'src/test/resources/api-testng.xml'
+                ],
+                description: 'Suite File'
         )
     }
 
     stages {
+
         stage('Clean Workspace') {
             steps {
                 cleanWs()
@@ -46,72 +52,125 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
+
                 sh """
-                    docker build \
-                        -t api-automation:${BUILD_NUMBER} .
-                """
+            docker build \
+                -t api-automation:${BUILD_NUMBER} .
+            """
             }
         }
 
-        stage('Run UI Tests') {
+        stage('Run Tests') {
             steps {
-                catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-                    sh """
-                        mkdir -p "${WORKSPACE}/results/allure-results"
-                        mkdir -p "${WORKSPACE}/results/test-results"
 
-                        docker run --rm \
-                            --add-host=host.docker.internal:host-gateway \
-                            -v "${WORKSPACE}/results:/results" \
-                            api-automation:${BUILD_NUMBER} \
-                            './gradlew test \
-                                -DsuiteXml=${params.SUITE_FILE} \
-                                -DexecutionType=${params.EXECUTION_TYPE} \
-                                -Dbrowser=${params.BROWSER} \
-                                -Dselenium.grid.url=http://host.docker.internal:4444; \
-                              status=\$?; \
-                              mkdir -p /results/allure-results /results/test-results; \
-                              cp -R build/allure-results/. /results/allure-results/ 2>/dev/null || true; \
-                              cp -R build/test-results/. /results/test-results/ 2>/dev/null || true; \
-                              exit \$status'
-                    """
+                script {
+
+                    sh '''
+                mkdir -p results
+                '''
+
+                    sh """
+                docker run \
+                  --name api-tests-${BUILD_NUMBER} \
+                  --add-host=host.docker.internal:host-gateway \
+                  api-automation:${BUILD_NUMBER} \
+                  test \
+                  -DsuiteXml=${params.SUITE_FILE} \
+                  -DexecutionType=${params.EXECUTION_TYPE} \
+                  -Dbrowser=${params.BROWSER} \
+                  -Dselenium.grid.url=http://host.docker.internal:4444
+                """
                 }
+            }
+        }
+
+        stage('Copy Results From Container') {
+            steps {
+
+                sh """
+            mkdir -p results
+
+            docker cp \
+              api-tests-${BUILD_NUMBER}:/app/build/allure-results \
+              results/ || true
+
+            docker cp \
+              api-tests-${BUILD_NUMBER}:/app/build/test-results \
+              results/ || true
+
+            echo "===== RESULTS ====="
+
+            find results || true
+            """
             }
         }
 
         stage('Generate Allure Report') {
             steps {
+
                 script {
+
                     def allureHome = tool 'Allure'
 
                     sh """
-                        if [ -d results/allure-results ] && [ -n "\$(find results/allure-results -type f -print -quit)" ]; then
-                            ${allureHome}/bin/allure generate \
-                                results/allure-results \
-                                -o allure-report \
-                                --clean
-                        else
-                            mkdir -p allure-report
-                            printf '<html><body><h1>No Allure results found</h1></body></html>' > allure-report/index.html
-                        fi
-                    """
+                echo "===== ALLURE RESULTS ====="
+
+                find results/allure-results || true
+
+                ${allureHome}/bin/allure generate \
+                    results/allure-results \
+                    -o allure-report \
+                    --clean
+                """
                 }
             }
         }
     }
 
     post {
-        always {
-            junit allowEmptyResults: true, testResults: 'results/test-results/**/*.xml'
 
-            publishHTML([
-                    allowMissing: true,
-                    alwaysLinkToLastBuild: true,
-                    keepAll: true,
-                    reportDir: 'allure-report',
-                    reportFiles: 'index.html',
-                    reportName: 'Allure HTML Report'
-            ])
+        always {
+
+            script {
+
+                sh '''
+            echo "===== FINAL DEBUG ====="
+
+            pwd
+
+            find results || true
+
+            find allure-report || true
+            '''
+
+                junit(
+                        allowEmptyResults: true,
+                        testResults: 'results/test-results/**/*.xml'
+                )
+
+                publishHTML([
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'allure-report',
+                        reportFiles: 'index.html',
+                        reportName: 'Allure HTML Report'
+                ])
+
+                archiveArtifacts(
+                        artifacts: 'allure-report/**',
+                        allowEmptyArchive: true
+                )
+
+                archiveArtifacts(
+                        artifacts: 'results/**',
+                        allowEmptyArchive: true
+                )
+
+                sh """
+            docker rm -f api-tests-${BUILD_NUMBER} || true
+            """
+            }
         }
     }
 

@@ -1,3 +1,4 @@
+import io.qameta.allure.AllureId;
 import org.framework.api.assertions.ApiAssertions;
 import org.framework.api.core.ApiResponse;
 import org.framework.api.model.User;
@@ -47,7 +48,7 @@ public class UsersApiTest {
             System.setProperty(API_BASE_URL_PROPERTY, originalBaseUrl);
         }
     }
-
+    
     @Test
     public void createUser() {
         User request = new User(

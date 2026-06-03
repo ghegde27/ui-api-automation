@@ -62,6 +62,7 @@ dependencies {
 }
 test {
     useTestNG {
+        listeners << "io.qameta.allure.testng.AllureTestNg"
         suites(
                 System.getProperty(
                         "suiteXml",
@@ -72,6 +73,10 @@ test {
 
     // Pass runtime overrides: -Dplatform, -Dbrowser, etc
     systemProperties System.getProperties()
+    systemProperty "allure.results.directory", System.getProperty(
+            "allure.results.directory",
+            "${layout.buildDirectory.get().asFile}/allure-results"
+    )
 
     testLogging {
         events "PASSED", "FAILED", "SKIPPED"
