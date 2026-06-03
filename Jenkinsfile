@@ -25,6 +25,12 @@ pipeline {
                 choices: ['grid'],
                 description: 'Execution Type'
         )
+
+        choice(
+                name: 'SUITE_FILE',
+                choices: ['src/test/resources/testng.xml','src/test/resources/api-testng.xml'],
+                description: 'Execution Type'
+        )
     }
 
     stages {
@@ -62,7 +68,7 @@ pipeline {
               -v ${WORKSPACE}/results:/results \
               api-automation:${BUILD_NUMBER} \
               test \
-              -DsuiteXml=src/test/resources/testng.xml \
+              -DsuiteXml=${params.SUITE_FILE} \
               -DexecutionType=${params.EXECUTION_TYPE} \
               -Dbrowser=${params.BROWSER} \
               -Dselenium.grid.url=http://host.docker.internal:4444
