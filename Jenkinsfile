@@ -126,19 +126,19 @@ pipeline {
         }
     }
 
-    post {
-        always {
-            script {
-                sh '''
-                    echo "===== Final Jenkins artifacts ====="
-                    find results -maxdepth 4 -type f | sort || true
-                    find allure-report -maxdepth 4 -type f | sort || true
-                '''
+
+        post {
+            always {
 
                 junit(
                         allowEmptyResults: true,
                         testResults: 'results/test-results/**/*.xml'
                 )
+
+                allure([
+                        includeProperties: false,
+                        results: [[path: 'results/allure-results']]
+                ])
 
                 publishHTML([
                         allowMissing: true,
@@ -148,16 +148,7 @@ pipeline {
                         reportFiles: 'index.html',
                         reportName: 'Allure HTML Report'
                 ])
-
-                archiveArtifacts(
-                        artifacts: 'allure-report/**, results/**',
-                        allowEmptyArchive: true
-                )
-
-                sh """
-                    docker rm -f api-tests-${BUILD_NUMBER} || true
-                """
             }
         }
-    }
+
 }
