@@ -72,7 +72,6 @@ pipeline {
                     sh """
                 docker run \
                   --name api-tests-${BUILD_NUMBER} \
-                  --add-host=host.docker.internal:host-gateway \
                   api-automation:${BUILD_NUMBER} \
                   test \
                   -DsuiteXml=${params.SUITE_FILE} \
